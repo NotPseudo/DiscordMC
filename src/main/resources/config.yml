@@ -1,0 +1,19 @@
+# Please get the following information and paste them correctly where they belong below
+# If any information is missing, the plugin will not work correctly, and the bridge between the Discord channel and Minecraft server will not work correctly
+# You may need to activate developer mode on Discord to be able to get bot, server, and channel IDs
+# You will need to create a bot application through the Discord developer portal to act as the bridge bot. Do not use a bot ID or token you do now own
+
+# BOT TOKEN
+# Make a bot application through the Discord Developer Portal
+# Copy the bot token and paste it here
+bot_token: # PASTE YOUR BOT TOKEN HERE
+
+# SERVER ID
+# Invite the bot to the server you want the bridge in
+# Make sure the bot has the correct permissions to talk in the channel you want
+server_id: # PASTE THE SERVER ID HERE
+
+# CHANNEL ID
+# Allocate a channel in the Discord server that will act as the bridge between the Minecraft and Discord server
+# Make sure the bot has the correct permissions to send and read messages in the channel
+channel_id: # PASTE THE CHANNEL ID HERE

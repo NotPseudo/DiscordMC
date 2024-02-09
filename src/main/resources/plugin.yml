@@ -1,0 +1,16 @@
+name: DiscordMC
+version: '${project.version}'
+main: me.notpseudo.discordmc.DiscordMC
+api-version: 1.19
+authors: [ NotPseudo ]
+description: A Minecraft Server plugin that bridges Minecraft server chat to a Discord channel
+commands:
+  disable:
+    description: Disables the bot
+  enable:
+    description: Enables the bot
+  reloaddiscord:
+    description: Reloads the bot
+    aliases:
+      - reloaddc
+      - dcreload
