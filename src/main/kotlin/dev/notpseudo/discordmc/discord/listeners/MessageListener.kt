@@ -11,6 +11,7 @@ import java.awt.Color
 class MessageListener(private val discord: Discord) : ListenerAdapter() {
 
     override fun onMessageReceived(event: MessageReceivedEvent) {
+        if (!event.channel.id.equals(discord.currentSettings().discord.chatChannelId, ignoreCase = true)) return
         if (!event.isFromType(ChannelType.TEXT)) return
         val message = event.message
         if (message.isWebhookMessage) return
