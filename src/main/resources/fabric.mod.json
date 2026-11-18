@@ -1,0 +1,35 @@
+{
+	"schemaVersion": 1,
+	"id": "discordmc",
+	"version": "${version}",
+	"name": "DiscordMC",
+	"description": "A server-side mod that connects Minecraft server chat and Discord server chat!",
+	"authors": [
+		"NotPseudo"
+	],
+	"contact": {
+		"homepage": "https://notpseudo.dev/",
+		"sources": "https://github.com/NotPseudo/DiscordMC"
+	},
+	"license": "CC0-1.0",
+	"icon": "assets/discordmc/icon.png",
+	"environment": "server",
+	"entrypoints": {
+		"main": [
+			{
+				"value": "dev.notpseudo.discordmc.DiscordMC",
+				"adapter": "kotlin"
+			}
+		]
+	},
+	"mixins": [
+		"discordmc.mixins.json"
+	],
+	"depends": {
+		"fabricloader": ">=0.20.1",
+		"minecraft": "~26.3",
+		"java": ">=25",
+		"fabric-api": "*",
+		"fabric-language-kotlin": "*"
+	}
+}

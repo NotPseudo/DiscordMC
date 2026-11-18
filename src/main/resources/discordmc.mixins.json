@@ -1,0 +1,15 @@
+{
+  "required": true,
+  "package": "dev.notpseudo.discordmc.mixin",
+  "compatibilityLevel": "JAVA_25",
+  "mixins": [
+    "ExampleMixin",
+    "PlayerAdvancementsMixin"
+  ],
+  "injectors": {
+    "defaultRequire": 1
+  },
+  "overwrites": {
+    "requireAnnotations": true
+	}
+}
