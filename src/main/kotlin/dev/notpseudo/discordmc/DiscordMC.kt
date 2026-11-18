@@ -23,7 +23,7 @@ object DiscordMC : ModInitializer {
 		// However, some things (like resources) may still be uninitialized.
 		// Proceed with mild caution.
 
-		val discord = Discord { settings.discord }
+		val discord = Discord { settings }
 		ServerLifecycleEvents.SERVER_STARTED.register { server ->
 			discord.attachServer(server)
 		}
