@@ -25,7 +25,7 @@ public abstract class PlayerAdvancementsMixin {
     )
     private void onAdvancementCompleted(AdvancementHolder holder, String criterion, CallbackInfoReturnable<Boolean> cir) {
         PlayerAdvancementCallback.Companion.getEVENT().invoker()
-                .onAdvancementCompleted(this.player, holder.value());
+                .onAdvancementCompleted(this.player, holder);
     }
 
 }
