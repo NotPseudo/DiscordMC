@@ -1,7 +1,6 @@
 package dev.notpseudo.discordmc.discord
 
 import dev.notpseudo.discordmc.config.Settings
-import dev.notpseudo.discordmc.discord.config.DiscordSettings
 import dev.notpseudo.discordmc.discord.listeners.MessageListener
 import net.dv8tion.jda.api.EmbedBuilder
 import net.dv8tion.jda.api.JDA
@@ -9,13 +8,16 @@ import net.dv8tion.jda.api.JDABuilder
 import net.dv8tion.jda.api.entities.Member
 import net.dv8tion.jda.api.entities.Message
 import net.dv8tion.jda.api.entities.MessageEmbed
-import net.dv8tion.jda.api.utils.messages.MessageCreateData
-import net.minecraft.advancements.Advancement
+import net.minecraft.advancements.AdvancementHolder
+import net.minecraft.advancements.AdvancementType
 import net.minecraft.network.chat.ClickEvent
 import net.minecraft.network.chat.Component
 import net.minecraft.network.chat.HoverEvent
 import net.minecraft.network.chat.TextColor
 import net.minecraft.server.MinecraftServer
+import net.minecraft.server.level.ServerLevel
+import net.minecraft.server.level.ServerPlayer
+import net.minecraft.world.entity.player.Player
 import net.minecraft.world.level.Level
 import java.awt.Color
 import java.net.URI
@@ -76,24 +78,68 @@ class Discord(val currentSettings: () -> Settings) {
         }
     }
 
-    fun onPlayerJoin(name: String) {
+    fun onPlayerJoin(player: Player) {
         if (!currentSettings().minecraft.sendPlayerJoinLeave) return
-        val playerInfo = getMinecraftPlayerInfo(name)
-        EmbedBuilder().setTimestamp(Instant.now()).setAuthor("$name joined", playerInfo.namemcURL, playerInfo.mcheadsURL).setColor(Color.GREEN).build()
+        val playerInfo = getMinecraftPlayerInfo(player.plainTextName)
+        val embed = EmbedBuilder().setTimestamp(Instant.now())
+            .setAuthor("${player.displayName.string} joined", playerInfo.namemcURL, playerInfo.mcheadsURL)
+            .setColor(Color.GREEN)
+            .build()
+        sendMessageToDiscord(embed, getChannelIdForMessageType(MinecraftToDiscordMessageType.JOIN))
     }
 
-    fun onPlayerLeave(name: String) {
+    fun onPlayerLeave(player: Player) {
         if (!currentSettings().minecraft.sendPlayerJoinLeave) return
-        val playerInfo = getMinecraftPlayerInfo(name)
-        EmbedBuilder().setTimestamp(Instant.now()).setAuthor("$name joined", playerInfo.namemcURL, playerInfo.mcheadsURL).setColor(Color.RED).build()
+        val playerInfo = getMinecraftPlayerInfo(player.plainTextName)
+        val embed = EmbedBuilder().setTimestamp(Instant.now())
+            .setAuthor("${player.displayName.string} joined", playerInfo.namemcURL, playerInfo.mcheadsURL)
+            .setColor(Color.RED)
+            .build()
+        sendMessageToDiscord(embed, getChannelIdForMessageType(MinecraftToDiscordMessageType.LEAVE))
     }
 
-    fun onPlayerAdvancement(name: String, advancement: Advancement) {
+    fun onPlayerAdvancement(player: ServerPlayer, holder: AdvancementHolder) {
         if (!currentSettings().minecraft.sendPlayerAdvancement) return
+        val playerInfo = getMinecraftPlayerInfo(player.plainTextName)
+        val displayInfo = holder.value.display.orElse(null) ?: return
+        val announcement = displayInfo.type.createAnnouncement(holder, player)
+        val color = when (displayInfo.type) {
+            AdvancementType.TASK, AdvancementType.GOAL -> 0x55FF55
+            AdvancementType.CHALLENGE -> 0xAA00AA
+        }
+        val embed = EmbedBuilder().setTimestamp(Instant.now())
+            .setAuthor(announcement.string, playerInfo.namemcURL, playerInfo.mcheadsURL)
+            .setColor(color)
+            .build()
+        sendMessageToDiscord(embed, getChannelIdForMessageType(MinecraftToDiscordMessageType.ADVANCEMENT))
     }
 
-    fun onPlayerWorldChange(name: String, origin: Level, destination: Level) {
+    private fun dimensionName(level: Level): String = when (val key = level.dimension()) {
+        Level.OVERWORLD -> "Overworld"
+        Level.NETHER -> "The Nether"
+        Level.END -> "The End"
+        else -> {
+            val id = key.identifier()
+            "${readableName(id.path)} (${readableName(id.namespace)})"
+        }
+    }
+
+    private fun readableName(value: String): String =
+        value.split('_', '-', '/', '.')
+            .filter { it.isNotEmpty() }
+            .joinToString(" ") { word ->
+                word.replaceFirstChar { it.titlecaseChar() }
+            }
+            .ifEmpty { value }
+
+    fun onPlayerWorldChange(player: Player, origin: ServerLevel, destination: ServerLevel) {
         if (!currentSettings().minecraft.sendPlayerWorldChange) return
+        val playerInfo = getMinecraftPlayerInfo(player.plainTextName)
+        val embed = EmbedBuilder().setTimestamp(Instant.now())
+            .setAuthor("${player.displayName.string} traveled from ${dimensionName(origin)} to ${dimensionName(destination)}", playerInfo.namemcURL, playerInfo.mcheadsURL)
+            .setColor(0x1ABC9C)
+            .build()
+        sendMessageToDiscord(embed, getChannelIdForMessageType(MinecraftToDiscordMessageType.WORLD))
     }
 
     fun onDiscordMessage(sender: Member, message: Message) {
