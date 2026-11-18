@@ -3,6 +3,8 @@ package dev.notpseudo.discordmc.minecraft.events
 import net.fabricmc.fabric.api.event.Event
 import net.fabricmc.fabric.api.event.EventFactory
 import net.minecraft.advancements.Advancement
+import net.minecraft.advancements.AdvancementHolder
+import net.minecraft.server.level.ServerPlayer
 import net.minecraft.world.entity.player.Player
 
 fun interface PlayerAdvancementCallback  {
@@ -20,5 +22,5 @@ fun interface PlayerAdvancementCallback  {
     }
 
 
-    fun onAdvancementCompleted(player: Player, advancement: Advancement)
+    fun onAdvancementCompleted(player: ServerPlayer, advancement: AdvancementHolder)
 }

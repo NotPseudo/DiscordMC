@@ -6,9 +6,9 @@ import dev.notpseudo.discordmc.minecraft.events.PlayerAdvancementCallback
 class PlayerAdvancementListener(private val discord: Discord) : Listener {
 
     override fun register() {
-        PlayerAdvancementCallback.EVENT.register { player, advancement ->
-            if (advancement.display().isPresent) {
-                discord.onPlayerAdvancement(player.displayName.string, advancement)
+        PlayerAdvancementCallback.EVENT.register { player, holder ->
+            if (holder.value().display().isPresent) {
+                discord.onPlayerAdvancement(player, holder)
             }
         }
     }
