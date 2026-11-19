@@ -17,6 +17,8 @@ import net.minecraft.network.chat.TextColor
 import net.minecraft.server.MinecraftServer
 import net.minecraft.server.level.ServerLevel
 import net.minecraft.server.level.ServerPlayer
+import net.dv8tion.jda.api.requests.GatewayIntent
+import org.slf4j.LoggerFactory
 import net.minecraft.world.entity.player.Player
 import net.minecraft.world.level.Level
 import java.awt.Color
@@ -24,9 +26,32 @@ import java.net.URI
 import java.time.Instant
 
 class Discord(val currentSettings: () -> Settings) {
-    private val jda: JDA = JDABuilder.createDefault(currentSettings().discord.botToken)
-        .addEventListeners(MessageListener(this))
-        .build()
+    private val logger = LoggerFactory.getLogger(Discord::class.java)
+
+    @Volatile
+    private var jda: JDA? = null
+
+    fun start() {
+        val config = currentSettings().discord
+        if (config.botToken.isBlank() || config.chatChannelId.isBlank()) {
+            logger.warn("Configure bot_token and chat_channel_id in config/discordmc/discord_settings.json to enable the bridge.")
+            return
+        }
+        try {
+            jda = JDABuilder.createDefault(config.botToken)
+                .enableIntents(GatewayIntent.MESSAGE_CONTENT)
+                .addEventListeners(MessageListener(this))
+                .build()
+        } catch (exception: Exception) {
+            logger.error("Unable to start the Discord bridge.", exception)
+        }
+    }
+
+    fun stop() {
+        val client = jda
+        jda = null
+        client?.shutdownNow()
+    }
 
     enum class MinecraftToDiscordMessageType {
         CHAT, JOIN, LEAVE, ADVANCEMENT, WORLD
@@ -50,7 +75,7 @@ class Discord(val currentSettings: () -> Settings) {
 
     fun getMinecraftPlayerInfo(name: String): MinecraftPlayerInfo {
         return MinecraftPlayerInfo(
-            namemcURL = " https://namemc.com/profile/$name",
+            namemcURL = "https://namemc.com/profile/$name",
             mcheadsURL =  "https://mc-heads.net/avatar/$name/100"
         )
     }
@@ -67,14 +92,29 @@ class Discord(val currentSettings: () -> Settings) {
     }
 
     fun sendMessageToDiscord(embed: MessageEmbed, channelId: String) {
-        val channel = jda.getTextChannelById(channelId) ?: return
-        channel.sendMessageEmbeds(embed).queue()
+        val client = jda ?: return
+        if (client.status != JDA.Status.CONNECTED) return
+        try {
+            val channel = client.getTextChannelById(channelId)
+            if (channel == null) {
+                logger.warn("Discord channel {} is unavailable. Check the ID and bot permissions.", channelId)
+                return
+            }
+            channel.sendMessageEmbeds(embed).queue(
+                { },
+                { error -> logger.error("Unable to send a Discord message to channel {}.", channelId, error) }
+            )
+        } catch (exception: Exception) {
+            logger.error("Unable to send a Discord message to channel {}.", channelId, exception)
+        }
     }
 
     fun sendMessageToMinecraft(component: Component) {
         val server = minecraftServer?: return
         server.execute {
-            server.playerList.broadcastSystemMessage(component, false)
+            if (minecraftServer === server) {
+                server.playerList.broadcastSystemMessage(component, false)
+            }
         }
     }
 
@@ -92,7 +132,7 @@ class Discord(val currentSettings: () -> Settings) {
         if (!currentSettings().minecraft.sendPlayerJoinLeave) return
         val playerInfo = getMinecraftPlayerInfo(player.plainTextName)
         val embed = EmbedBuilder().setTimestamp(Instant.now())
-            .setAuthor("${player.displayName.string} joined", playerInfo.namemcURL, playerInfo.mcheadsURL)
+            .setAuthor("${player.displayName.string} left", playerInfo.namemcURL, playerInfo.mcheadsURL)
             .setColor(Color.RED)
             .build()
         sendMessageToDiscord(embed, getChannelIdForMessageType(MinecraftToDiscordMessageType.LEAVE))
@@ -102,6 +142,7 @@ class Discord(val currentSettings: () -> Settings) {
         if (!currentSettings().minecraft.sendPlayerAdvancement) return
         val playerInfo = getMinecraftPlayerInfo(player.plainTextName)
         val displayInfo = holder.value.display.orElse(null) ?: return
+        if (!displayInfo.announceToChat()) return
         val announcement = displayInfo.type.createAnnouncement(holder, player)
         val color = when (displayInfo.type) {
             AdvancementType.TASK, AdvancementType.GOAL -> 0x55FF55
@@ -142,6 +183,18 @@ class Discord(val currentSettings: () -> Settings) {
         sendMessageToDiscord(embed, getChannelIdForMessageType(MinecraftToDiscordMessageType.WORLD))
     }
 
+    fun onMinecraftMessage(player: Player, message: String) {
+        if (!currentSettings().minecraft.sendPlayerChat) return
+        val playerInfo = getMinecraftPlayerInfo(player.plainTextName)
+        val embed = EmbedBuilder().setTimestamp(Instant.now())
+            .setAuthor(player.displayName.string, playerInfo.namemcURL, playerInfo.mcheadsURL)
+            .setColor(currentSettings().discord.minecraftChatEmbedColor)
+            .setDescription(message)
+            .setFooter(if (currentSettings().minecraft.showPlayerWorld) dimensionName(player.level()) else null)
+            .build()
+        sendMessageToDiscord(embed, getChannelIdForMessageType(MinecraftToDiscordMessageType.CHAT))
+    }
+
     fun onDiscordMessage(sender: Member, message: Message) {
         val config = currentSettings().discord
         if (!config.sendDiscordChat) return
@@ -150,17 +203,18 @@ class Discord(val currentSettings: () -> Settings) {
         val roleColor = sender.colors.primary?: Color.WHITE
 
         val content = message.contentStripped
+        if (content.isBlank()) return
 
         val messageUrl: URI = URI.create(message.jumpUrl)
 
         val toMinecraft = Component.literal("");
         if (config.discordIndicatorPrefix.isNotEmpty()) {
-            toMinecraft.append(Component.literal("${config.discordIndicatorPrefix} ").withColor(config.discordIndicatorColor.rgb))
+            toMinecraft.append(Component.literal("${config.discordIndicatorPrefix} ").withColor(config.discordIndicatorColor))
         }
         toMinecraft.append(Component.literal(name).withColor(roleColor.rgb))
         toMinecraft.append(Component.literal(": $content").withColor(TextColor.WHITE))
 
-        val hoverComponent = Component.literal("Discord").withColor(config.discordIndicatorColor.rgb)
+        val hoverComponent = Component.literal("Discord").withColor(config.discordIndicatorColor)
         hoverComponent.append(Component.literal(" message sent by ").withColor(TextColor.WHITE))
         hoverComponent.append(Component.literal(name).withColor(roleColor.rgb))
 
