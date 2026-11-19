@@ -2,8 +2,10 @@ package dev.notpseudo.discordmc
 
 import dev.notpseudo.discordmc.config.Settings
 import dev.notpseudo.discordmc.discord.Discord
-import dev.notpseudo.discordmc.discord.config.DiscordSettings
-import dev.notpseudo.discordmc.minecraft.config.MinecraftSettings
+import dev.notpseudo.discordmc.config.SettingsLoader
+import dev.notpseudo.discordmc.minecraft.listeners.GameChatListener
+import dev.notpseudo.discordmc.minecraft.listeners.PlayerJoinLeaveListener
+import dev.notpseudo.discordmc.minecraft.listeners.PlayerWorldListener
 import dev.notpseudo.discordmc.minecraft.listeners.PlayerAdvancementListener
 import net.fabricmc.api.ModInitializer
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerLifecycleEvents
@@ -19,21 +21,29 @@ object DiscordMC : ModInitializer {
 	private var settings: Settings = Settings()
 
 	override fun onInitialize() {
-		// This code runs as soon as Minecraft is in a mod-load-ready state.
-		// However, some things (like resources) may still be uninitialized.
-		// Proceed with mild caution.
+        settings = try {
+            SettingsLoader().loadSettings()
+        } catch (exception: Exception) {
+            LOGGER.error("Unable to load DiscordMC settings. The bridge is disabled.", exception)
+            return
+        }
 
 		val discord = Discord { settings }
 		ServerLifecycleEvents.SERVER_STARTED.register { server ->
 			discord.attachServer(server)
+            discord.start()
 		}
 		ServerLifecycleEvents.SERVER_STOPPING.register { _ ->
 			discord.detachServer()
+            discord.stop()
 		}
 
 		PlayerAdvancementListener(discord).register()
+        GameChatListener(discord).register()
+        PlayerJoinLeaveListener(discord).register()
+        PlayerWorldListener(discord).register()
 
-		LOGGER.info("Hello Fabric world!")
+		LOGGER.info("DiscordMC listeners registered.")
 	}
 
 	fun id(path: String): Identifier

@@ -1,7 +1,6 @@
 package dev.notpseudo.discordmc.discord.config
 
 import com.google.gson.annotations.SerializedName
-import java.awt.Color
 
 data class DiscordSettings(
     @SerializedName("bot_token")
@@ -16,11 +15,14 @@ data class DiscordSettings(
     @SerializedName("chat_channel_id")
     val chatChannelId: String = "",
 
+    @SerializedName("minecraft_chat_embed_color")
+    val minecraftChatEmbedColor: Int = 0x5865F2,
+
     @SerializedName("discord_indicator_prefix")
     val discordIndicatorPrefix: String = "[DC]",
 
     @SerializedName("discord_indicator_color")
-    val discordIndicatorColor: Color = Color.BLUE,
+    val discordIndicatorColor: Int = 0x0000FF,
 
     @SerializedName("separate_join_leave")
     val separateJoinLeave: Boolean = false,
